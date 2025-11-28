@@ -1,0 +1,51 @@
+---
+# This Ansible Playbook is designed to perform comprehensive patching
+# on Red Hat Enterprise Linux (RHEL) target hosts using standard yum/dnf
+# modules, and ensure the system is properly rebooted if required.
+
+# The name of the playbook.
+- name: Patch and Update RHEL Systems
+  # Replace 'your_rhel_hosts' with the name of the group in your inventory
+  # that contains the RHEL systems you wish to patch.
+  hosts: your_rhel_hosts
+  become: yes          # Mandatory: Run all tasks as root/privileged user
+  gather_facts: yes    # Mandatory: Collect system information before starting
+
+  vars:
+    # A list of packages to exclude from the upgrade process.
+    exclude_packages: []
+    # Maximum time in seconds to wait for a system to reboot (30 minutes).
+    reboot_timeout: 1800
+
+  tasks:
+    - name: Set OS-specific package manager fact
+      # Determines if the system uses 'dnf' (RHEL 8+) or 'yum' (RHEL 7)
+      set_fact:
+        pkg_mgr: "{{ 'dnf' if ansible_distribution_major_version | int >= 8 else 'yum' }}"
+
+    - name: Ensure all packages are updated (equivalent to 'yum update' or 'dnf update')
+      ansible.builtin.package:
+        name: "*"
+        state: latest
+        exclude: "{{ exclude_packages }}"
+      register: package_update_result
+      # Use the correct package manager based on the gathered fact
+      args:
+        # Note: 'ansible.builtin.package' automatically selects yum/dnf/apt,
+        # but specifying the package manager explicitly can be good practice
+        # if using community roles or older Ansible versions.
+        manager: "{{ pkg_mgr }}"
+
+    - name: Check if a reboot is required after the update
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot the host if the reboot-required file exists
+      ansible.builtin.reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+      when: reboot_required_file.stat.exists
+
+    - name: Report success and update status
+      ansible.builtin.debug:
+        msg: "Patching complete. System was rebooted: {{ reboot_required_file.stat.exists }}"
