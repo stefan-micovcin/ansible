@@ -1,0 +1,26 @@
+---
+# This playbook demonstrates the RECOMMENDED method for patching RHEL systems
+# using supported content from the Red Hat Automation Hub.
+
+# 1. Specify the collection required for this role
+collections:
+  - redhat.rhel_system_roles
+
+- name: Apply Updates using Supported RHEL Role
+  hosts: your_rhel_hosts # Ensure this group exists in your AAP inventory
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # 2. Call the official 'system_update' role
+    # This single line replaces all the conditional DNF/YUM tasks and the reboot logic.
+    - name: Run RHEL System Update Role
+      include_role:
+        name: rhel_system_roles.system_update
+      # This variable tells the role to check for and apply all available updates.
+      vars:
+        system_update_state: present
+
+    - name: Notify on Completion
+      ansible.builtin.debug:
+        msg: "Patching is complete. The 'rhel_system_roles.system_update' handles all package management and required reboots automatically."
