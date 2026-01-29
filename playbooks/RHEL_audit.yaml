@@ -1,0 +1,12 @@
+---
+- name: Azure VM System Audit
+  hosts: all
+  become: yes
+  tasks:
+    - name: Get system metrics (uptime, kernel, processes)
+      shell: "uptime; uname -a; ps"
+      register: audit_output
+
+    - name: Display audit results
+      debug:
+        msg: "{{ audit_output.stdout_lines }}"
