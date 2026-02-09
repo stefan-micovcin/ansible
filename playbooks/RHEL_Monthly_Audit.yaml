@@ -5,6 +5,15 @@
   gather_facts: yes
 
   tasks:
+    - name: Collect Storage and Network Info
+      shell: |
+        echo "--- STORAGE (df -h) ---"
+        df -h -x tmpfs -x devtmpfs
+        echo -e "\n--- NETWORK (IP) ---"
+        ip -brief addr
+      register: custom_metrics
+
+    # NOW we create the template, because 'custom_metrics' now exists
     - name: Create the HTML template on the controller
       delegate_to: localhost
       run_once: true
@@ -37,19 +46,11 @@
           </body>
           </html>
 
-    - name: Collect Storage and Network Info
-      shell: |
-        echo "--- STORAGE (df -h) ---"
-        df -h -x tmpfs -x devtmpfs
-        echo -e "\n--- NETWORK (IP) ---"
-        ip -brief addr
-      register: custom_metrics
-
     - name: Generate HTML Report
       delegate_to: localhost
       run_once: true
       ansible.builtin.template:
-        src: "/tmp/audit_report.j2"  # Pointing to the file we just created
+        src: "/tmp/audit_report.j2"
         dest: "/tmp/azure_audit_{{ ansible_date_time.date }}.html"
 
     - name: Log Report Location
