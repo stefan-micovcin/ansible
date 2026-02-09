@@ -8,10 +8,9 @@
     # 1. GATHER PATCH DATA (Dry Run)
     - name: Check for available updates
       ansible.builtin.dnf:
-        name: "*"
-        state: latest
-        list_updates: yes
-      check_mode: yes
+        list: updates
+        update_cache: yes
+      check_mode: no # We set this to 'no' so it actually runs the list command
       register: patch_check
 
     # 2. COLLECT SYSTEM STATS
