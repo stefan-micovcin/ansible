@@ -1,10 +1,12 @@
 ---
-- name: Azure VM System Audit
-  hosts: all
+- name:  VM System Audit
+  hosts: "{{ target_hosts }}"  # This MUST match the Survey variable name
   become: yes
+  gather_facts: no             # Skips the step that caused your error
+
   tasks:
-    - name: Get system metrics (uptime, kernel, processes)
-      shell: "uptime; uname -a; ps"
+    - name: Get system metrics
+      shell: "uptime; uname -a; df -h; ip -brief addr"
       register: audit_output
 
     - name: Display audit results
