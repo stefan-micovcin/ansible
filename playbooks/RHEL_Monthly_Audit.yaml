@@ -1,13 +1,5 @@
-Got it! I've scheduled that for you.
-
-To make this work perfectly, you will need to place two files in your Git repository and sync your AAP project.
-
-1. The Playbook (audit_to_web.yml)
-This playbook collects the Uptime, Kernel, Storage (df), and Network (ip addr) info, then builds a single HTML report.
-
-YAML
 ---
-- name: Azure VM Monthly System Audit
+- name: VM Monthly System Audit
   hosts: "{{ target_hosts | default('all') }}"
   become: yes
   gather_facts: yes
