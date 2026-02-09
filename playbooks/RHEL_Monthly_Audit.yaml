@@ -1,6 +1,6 @@
 ---
 - name: VM Monthly System Audit
-  hosts: "{{ target_hosts | default('all') }}"
+  hosts: "{{ target_hosts }}"
   become: yes
   gather_facts: yes
 
