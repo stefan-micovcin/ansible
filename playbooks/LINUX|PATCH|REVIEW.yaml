@@ -1,93 +1,33 @@
 ---
-- name: AWS EC2 Patch Review Dashboard
+- name: AWS EC2 Patch Review List
   hosts: "{{ _hosts | default(omit) }}"
   become: true
-  gather_facts: true
+  gather_facts: yes
 
   tasks:
-    # 1. GATHER PATCH DATA (Dry Run)
-    - name: Check for available updates
+    - name: Get list of available updates
       ansible.builtin.dnf:
         list: updates
         update_cache: yes
-      check_mode: no # We set this to 'no' so it actually runs the list command
       register: patch_check
 
-    # 2. COLLECT SYSTEM STATS
-    - name: Get Storage Info
-      ansible.builtin.shell: "df -h -x tmpfs -x devtmpfs"
-      register: disk_info
+    - name: Format update list for display
+      ansible.builtin.set_fact:
+        update_summary: >-
+          {%- for pkg in patch_check.results -%}
+          {{ pkg.name }}.{{ pkg.arch }} ({{ pkg.version }})
+          {% if not loop.last %}, {% endif %}
+          {%- endfor -%}
 
-    # 3. SETUP WEB SERVER (Ensure it exists to host the report)
-    - name: Ensure Apache is installed
-      ansible.builtin.dnf:
-        name: httpd
-        state: present
-
-    - name: Start Apache
-      ansible.builtin.service:
-        name: httpd
-        state: started
-        enabled: yes
-
-    # 4. GENERATE THE REVIEW PAGE
-    - name: Create Patch Review Web Page
-      ansible.builtin.copy:
-        dest: /var/www/html/patch_review.html
-        owner: apache
-        group: apache
-        mode: '0644'
-        content: |
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>Patch Review: {{ ansible_hostname }}</title>
-              <style>
-                  body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; padding: 40px; }
-                  .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-top: 6px solid #007eb9; }
-                  h1 { color: #232f3e; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-                  .meta { display: flex; justify-content: space-between; margin-bottom: 20px; color: #666; }
-                  .count-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 5px; font-weight: bold; margin-bottom: 20px; }
-                  pre { background: #232f3e; color: #39ff14; padding: 15px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
-                  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                  th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
-                  th { background: #f2f2f2; }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>Monthly Patch Review Dashboard</h1>
-                  <div class="meta">
-                      <span><strong>Instance:</strong> {{ ansible_hostname }}</span>
-                      <span><strong>Date:</strong> {{ ansible_date_time.date }}</span>
-                  </div>
-
-                  <div class="count-box">
-                      Total Packages Requiring Updates: {{ patch_check.results | length }}
-                  </div>
-
-                  <h3>Disk Status</h3>
-                  <pre>{{ disk_info.stdout }}</pre>
-
-                  <h3>Packages to be Patched</h3>
-                  <table>
-                      <tr>
-                          <th>Package Name</th>
-                          <th>Architecture</th>
-                          <th>New Version</th>
-                      </tr>
-                      {% for pkg in patch_check.results %}
-                      <tr>
-                          <td>{{ pkg.name }}</td>
-                          <td>{{ pkg.arch }}</td>
-                          <td>{{ pkg.version }}-{{ pkg.release }}</td>
-                      </tr>
-                      {% endfor %}
-                  </table>
-              </div>
-          </body>
-          </html>
-
-    - name: Final Link
+    - name: Display Patch Review Summary
       ansible.builtin.debug:
-        msg: "REVIEW COMPLETE! View the report at http://{{ ansible_default_ipv4.address }}/patch_review.html"
+        msg: 
+          - "SYSTEM: {{ ansible_hostname }}"
+          - "TOTAL UPDATES: {{ patch_check.results | length }}"
+          - "PACKAGES TO BE UPDATED:"
+          - "{{ update_summary.split(', ') }}"
+
+    - name: Check if critical updates exist
+      ansible.builtin.debug:
+        msg: "WARNING: High number of updates pending!"
+      when: patch_check.results | length > 50
