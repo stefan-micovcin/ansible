@@ -22,4 +22,6 @@
 
     - name: Log Report Location
       debug:
-        msg: "The report has been generated on the controller at /tmp/azure_audit_{
+        msg: >
+          The report has been generated on the controller at
+          /tmp/azure_audit_{{ ansible_date_time.date }}.html
