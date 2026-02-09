@@ -1,31 +1,33 @@
+Got it! I've scheduled that for you.
+
+To make this work perfectly, you will need to place two files in your Git repository and sync your AAP project.
+
+1. The Playbook (audit_to_web.yml)
+This playbook collects the Uptime, Kernel, Storage (df), and Network (ip addr) info, then builds a single HTML report.
+
+YAML
 ---
 - name: Azure VM Monthly System Audit
   hosts: "{{ target_hosts | default('all') }}"
   become: yes
-  gather_facts: yes  # Now that access works, we can gather facts!
+  gather_facts: yes
 
   tasks:
-    - name: Collect System Metrics
+    - name: Collect Storage and Network Info
       shell: |
-        echo "--- UPTIME ---"
-        uptime
-        echo -e "\n--- STORAGE (df -h) ---"
+        echo "--- STORAGE (df -h) ---"
         df -h -x tmpfs -x devtmpfs
         echo -e "\n--- NETWORK (IP) ---"
         ip -brief addr
-      register: audit_details
+      register: custom_metrics
 
-    - name: Generate Audit Summary
-      debug:
-        msg:
-          - "REPORT FOR: {{ ansible_hostname }}"
-          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-          - "KERNEL: {{ ansible_kernel }}"
-          - "{{ audit_details.stdout_lines }}"
-
-    - name: "Create Local Audit Log"
+    - name: Generate HTML Report
       delegate_to: localhost
-      lineinfile:
-        path: "/tmp/monthly_audit_{{ ansible_date_time.date }}.log"
-        line: "Host: {{ ansible_hostname }} | Status: OK | IP: {{ ansible_default_ipv4.address }}"
-        create: yes
+      run_once: true
+      ansible.builtin.template:
+        src: audit_report.j2
+        dest: "/tmp/azure_audit_{{ ansible_date_time.date }}.html"
+
+    - name: Log Report Location
+      debug:
+        msg: "The report has been generated on the controller at /tmp/azure_audit_{
