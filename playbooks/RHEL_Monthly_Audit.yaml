@@ -1,0 +1,31 @@
+---
+- name: Azure VM Monthly System Audit
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes  # Now that access works, we can gather facts!
+
+  tasks:
+    - name: Collect System Metrics
+      shell: |
+        echo "--- UPTIME ---"
+        uptime
+        echo -e "\n--- STORAGE (df -h) ---"
+        df -h -x tmpfs -x devtmpfs
+        echo -e "\n--- NETWORK (IP) ---"
+        ip -brief addr
+      register: audit_details
+
+    - name: Generate Audit Summary
+      debug:
+        msg:
+          - "REPORT FOR: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "KERNEL: {{ ansible_kernel }}"
+          - "{{ audit_details.stdout_lines }}"
+
+    - name: "Create Local Audit Log"
+      delegate_to: localhost
+      lineinfile:
+        path: "/tmp/monthly_audit_{{ ansible_date_time.date }}.log"
+        line: "Host: {{ ansible_hostname }} | Status: OK | IP: {{ ansible_default_ipv4.address }}"
+        create: yes
