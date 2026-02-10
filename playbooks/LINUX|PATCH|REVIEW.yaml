@@ -1,6 +1,6 @@
 ---
 - name: AWS EC2 Patch Review List
-  hosts: "{{ _hosts | default(omit) }}"
+  hosts: "{{ pickup_hosts | default(omit) }}"
   become: true
   gather_facts: yes
 
