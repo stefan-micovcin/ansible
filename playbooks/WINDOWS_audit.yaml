@@ -1,0 +1,24 @@
+---
+- name: Windows VM System Audit
+  hosts: "{{ target_hosts }}"
+  gather_facts: no
+
+  tasks:
+    - name: Get Windows system metrics
+      ansible.windows.win_shell: |
+        Write-Host "--- Uptime ---"
+        (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime | Select-Object Days, Hours, Minutes
+        
+        Write-Host "`n--- OS Version ---"
+        Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
+        
+        Write-Host "`n--- Disk Space ---"
+        Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | Select-Object DeviceID, @{Name="FreeGB";Expression={[math]::Round($_.FreeSpace/1GB,2)}}, @{Name="SizeGB";Expression={[math]::Round($_.Size/1GB,2)}}
+        
+        Write-Host "`n--- IP Addresses ---"
+        Get-NetIPAddress -AddressFamily IPv4 | Select-Object InterfaceAlias, IPAddress
+      register: win_audit_output
+
+    - name: Display Windows audit results
+      debug:
+        msg: "{{ win_audit_output.stdout_lines }}"
